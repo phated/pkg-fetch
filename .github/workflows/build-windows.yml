@@ -1,6 +1,7 @@
 name: Build Node binaries for Windows
 
 on:
+  push:
   workflow_dispatch:
 
 jobs:
