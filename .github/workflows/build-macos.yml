@@ -52,7 +52,6 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Setup for Apple Silicon
-        if: matrix.target == 'aarch64-apple-darwin'
         run: |
           sudo xcode-select -s /Applications/Xcode_13.2.1.app/Contents/Developer/
           echo "SDKROOT=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-path)" >> $GITHUB_ENV
