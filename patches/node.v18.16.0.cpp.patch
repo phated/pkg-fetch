@@ -1,5 +1,5 @@
 diff --git node/common.gypi node/common.gypi
-index 782c871cff..c379e36569 100644
+index 42879b1e6b..c148dfa4f9 100644
 --- node/common.gypi
 +++ node/common.gypi
 @@ -174,7 +174,7 @@
@@ -12,10 +12,10 @@ index 782c871cff..c379e36569 100644
                'lto': ' -flto ', # Clang
              }],
 diff --git node/configure.py node/configure.py
-index 62c01aaf6a..2913940692 100755
+index 40e0395ebd..8c1df737bf 100755
 --- node/configure.py
 +++ node/configure.py
-@@ -1288,9 +1288,7 @@ def configure_node(o):
+@@ -1294,9 +1294,7 @@ def configure_node(o):
  
    o['variables']['want_separate_host_toolset'] = int(cross_compiling)
  
@@ -25,6 +25,29 @@ index 62c01aaf6a..2913940692 100755
      o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
  
    if options.node_snapshot_main is not None:
+@@ -1604,8 +1602,10 @@ def configure_openssl(o):
+     variables['openssl_default_cipher_list'] = \
+             options.openssl_default_cipher_list
+ 
++  is_x86 = 'x64' in variables['target_arch'] or 'ia32' in variables['target_arch']
++  is_arm64 = 'arm64' in variables['target_arch']
++
+   if not options.shared_openssl and not options.openssl_no_asm:
+-    is_x86 = 'x64' in variables['target_arch'] or 'ia32' in variables['target_arch']
+ 
+     # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
+     # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
+@@ -1634,6 +1634,10 @@ def configure_openssl(o):
+   if options.openssl_is_fips and not options.shared_openssl:
+     variables['node_fipsinstall'] = b(True)
+ 
++  if is_arm64:
++    variables['openssl_darwin64_arm64_cc'] = 1
++    variables['openssl_no_asm'] = 1
++
+   if options.shared_openssl:
+     has_quic = getsharedopensslhasquic.get_has_quic(options.__dict__['shared_openssl_includes'])
+   else:
 diff --git node/deps/v8/include/v8-initialization.h node/deps/v8/include/v8-initialization.h
 index 3d59c73f7c..00b2de4524 100644
 --- node/deps/v8/include/v8-initialization.h
@@ -169,7 +192,7 @@ index 618cf9e975..64a57e8afe 100644
    uint32_t max_payload_length = this->size_ - kHeaderSize;
    if (payload_length > max_payload_length) {
 diff --git node/lib/child_process.js node/lib/child_process.js
-index 55e6b781cd..2a499d6d5f 100644
+index 5d3e2d63a7..077b96a415 100644
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
 @@ -167,7 +167,7 @@ function fork(modulePath, args = [], options) {
@@ -186,19 +209,14 @@ new file mode 100644
 index 0000000000..e97e9e524c
 --- /dev/null
 +++ node/lib/internal/bootstrap/pkg.js
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,44 @@
 +'use strict';
 +
 +const {
-+  prepareWorkerThreadExecution,
 +  prepareMainThreadExecution
 +} = require('internal/process/pre_execution');
 +
-+if (internalBinding('worker').isMainThread) {
-+  prepareMainThreadExecution(true);
-+} else {
-+  prepareWorkerThreadExecution();
-+}
++prepareMainThreadExecution(true);
 +
 +(function () {
 +  var __require__ = require;
@@ -237,7 +255,7 @@ index 0000000000..e97e9e524c
 +  }());
 +}());
 diff --git node/lib/internal/modules/cjs/loader.js node/lib/internal/modules/cjs/loader.js
-index 42e5cc5010..7c4ec56082 100644
+index 31649227ed..7ce743f8fb 100644
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
 @@ -94,7 +94,7 @@ const fs = require('fs');
@@ -250,7 +268,7 @@ index 42e5cc5010..7c4ec56082 100644
  const { safeGetenv } = internalBinding('credentials');
  const {
 diff --git node/lib/internal/modules/package_json_reader.js node/lib/internal/modules/package_json_reader.js
-index 09eb12bd15..2d2f196737 100644
+index bb175d0df5..07f4834c07 100644
 --- node/lib/internal/modules/package_json_reader.js
 +++ node/lib/internal/modules/package_json_reader.js
 @@ -1,7 +1,7 @@
@@ -263,7 +281,7 @@ index 09eb12bd15..2d2f196737 100644
  const { toNamespacedPath } = require('path');
  
 diff --git node/lib/internal/process/pre_execution.js node/lib/internal/process/pre_execution.js
-index 44a9183d77..3d2268c612 100644
+index a4cc80d480..7579777564 100644
 --- node/lib/internal/process/pre_execution.js
 +++ node/lib/internal/process/pre_execution.js
 @@ -33,7 +33,12 @@ const {
@@ -289,16 +307,23 @@ index 44a9183d77..3d2268c612 100644
      // Expand process.argv[1] into a full path.
      const path = require('path');
      try {
-@@ -598,6 +604,7 @@ function loadPreloadModules() {
-   // For user code, we preload modules if `-r` is passed
-   const preloadModules = getOptionValue('--require');
-   if (preloadModules && preloadModules.length > 0) {
-+    assert(false, '--require is not supported');
-     const {
-       Module: {
-         _preloadModules
+diff --git node/lib/internal/process/pre_execution.js.rej node/lib/internal/process/pre_execution.js.rej
+new file mode 100644
+index 0000000000..71ba7c9e25
+--- /dev/null
++++ node/lib/internal/process/pre_execution.js.rej
+@@ -0,0 +1,9 @@
++diff a/lib/internal/process/pre_execution.js b/lib/internal/process/pre_execution.js	(rejected hunks)
++@@ -598,6 +604,7 @@ function loadPreloadModules() {
++   // For user code, we preload modules if `-r` is passed
++   const preloadModules = getOptionValue('--require');
++   if (preloadModules && preloadModules.length > 0) {
+++    assert(false, '--require is not supported');
++     const {
++       Module: {
++         _preloadModules
 diff --git node/lib/vm.js node/lib/vm.js
-index ec91c8a265..5bb649a377 100644
+index 494e0f9530..351c45e135 100644
 --- node/lib/vm.js
 +++ node/lib/vm.js
 @@ -79,6 +79,7 @@ class Script extends ContextifyScript {
@@ -319,25 +344,28 @@ index ec91c8a265..5bb649a377 100644
      } catch (e) {
        throw e; /* node-do-not-add-exception-line */
      }
-diff --git node/node.gyp node/node.gyp
-index 0b5c3ff5ba..09776d4b1f 100644
---- node/node.gyp
-+++ node/node.gyp
-@@ -112,6 +112,9 @@
-     },
- 
-     'conditions': [
-+      ['target_arch=="arm64"', {
-+        'cflags': ['-msign-return-address=all'],  # Pointer authentication.
-+      }],
-       ['OS=="aix"', {
-         'ldflags': [
-           '-Wl,-bnoerrmsg',
+diff --git node/node.gyp.rej node/node.gyp.rej
+new file mode 100644
+index 0000000000..d88c9a765c
+--- /dev/null
++++ node/node.gyp.rej
+@@ -0,0 +1,11 @@
++diff a/node.gyp b/node.gyp	(rejected hunks)
++@@ -112,6 +112,9 @@
++     },
++ 
++     'conditions': [
+++      ['target_arch=="arm64"', {
+++        'cflags': ['-msign-return-address=all'],  # Pointer authentication.
+++      }],
++       ['OS=="aix"', {
++         'ldflags': [
++           '-Wl,-bnoerrmsg',
 diff --git node/src/inspector_agent.cc node/src/inspector_agent.cc
-index 91e7beeaa0..43a8a5d7c6 100644
+index 214f992c9d..508f1f2db8 100644
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -692,8 +692,6 @@ bool Agent::Start(const std::string& path,
+@@ -693,8 +693,6 @@ bool Agent::Start(const std::string& path,
                                StartIoThreadAsyncCallback));
      uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
      start_io_thread_async.data = this;
@@ -347,10 +375,10 @@ index 91e7beeaa0..43a8a5d7c6 100644
      parent_env_->AddCleanupHook([](void* data) {
        Environment* env = static_cast<Environment*>(data);
 diff --git node/src/node.cc node/src/node.cc
-index 1067dee74c..8b32a10d08 100644
+index 909de94b5d..487d830b2b 100644
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -312,6 +312,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+@@ -314,6 +314,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
      return env->RunSnapshotDeserializeMain();
    }
  
@@ -359,7 +387,7 @@ index 1067dee74c..8b32a10d08 100644
    if (env->worker_context() != nullptr) {
      return StartExecution(env, "internal/main/worker_thread");
    }
-@@ -503,14 +505,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
+@@ -517,14 +519,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
    }
  
    if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
@@ -375,7 +403,7 @@ index 1067dee74c..8b32a10d08 100644
    }
  
 diff --git node/src/node_contextify.cc node/src/node_contextify.cc
-index ed552ddd55..f757ac3b49 100644
+index 1155396747..8e28548554 100644
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
 @@ -75,6 +75,7 @@ using v8::ScriptOrigin;
@@ -386,7 +414,7 @@ index ed552ddd55..f757ac3b49 100644
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -771,11 +772,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -773,11 +774,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -400,7 +428,7 @@ index ed552ddd55..f757ac3b49 100644
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -794,6 +796,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -796,6 +798,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -408,7 +436,7 @@ index ed552ddd55..f757ac3b49 100644
    }
  
    ContextifyScript* contextify_script =
-@@ -844,6 +847,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -846,6 +849,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -419,7 +447,7 @@ index ed552ddd55..f757ac3b49 100644
    MaybeLocal<UnboundScript> maybe_v8_script =
        ScriptCompiler::CompileUnboundScript(isolate, &source, compile_options);
  
-@@ -857,6 +864,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -859,6 +866,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
                       "ContextifyScript::New");
      return;
    }
@@ -433,7 +461,7 @@ index ed552ddd55..f757ac3b49 100644
    contextify_script->script_.Reset(isolate, v8_script);
  
    std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
-@@ -881,6 +895,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -883,6 +897,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
            .IsNothing())
      return;
  
@@ -554,18 +582,21 @@ index d486bbc31c..eb806b1ce4 100644
 +
 +  return adjacent(c, nargv);
 +}
-diff --git node/src/node_options.cc node/src/node_options.cc
-index 6eabf78f1b..e9be1ed5ba 100644
---- node/src/node_options.cc
-+++ node/src/node_options.cc
-@@ -308,6 +308,7 @@ void Parse(
- // TODO(addaleax): Make that unnecessary.
- 
- DebugOptionsParser::DebugOptionsParser() {
-+  return;
-   AddOption("--inspect-port",
-             "set host:port for inspector",
-             &DebugOptions::host_port,
+diff --git node/src/node_options.cc.rej node/src/node_options.cc.rej
+new file mode 100644
+index 0000000000..f5dc5de718
+--- /dev/null
++++ node/src/node_options.cc.rej
+@@ -0,0 +1,9 @@
++diff a/src/node_options.cc b/src/node_options.cc	(rejected hunks)
++@@ -308,6 +308,7 @@ void Parse(
++ // TODO(addaleax): Make that unnecessary.
++ 
++ DebugOptionsParser::DebugOptionsParser() {
+++  return;
++   AddOption("--inspect-port",
++             "set host:port for inspector",
++             &DebugOptions::host_port,
 diff --git node/tools/icu/icu-generic.gyp node/tools/icu/icu-generic.gyp
 index db45e6fbdf..3e39f1fbdf 100644
 --- node/tools/icu/icu-generic.gyp
