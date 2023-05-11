@@ -164,7 +164,10 @@ async function applyPatches(nodeVersion: string) {
   }
 }
 
-export async function fetchExtractApply(nodeVersion: string, quietExtraction: boolean) {
+export async function fetchExtractApply(
+  nodeVersion: string,
+  quietExtraction: boolean
+) {
   await tarFetch(nodeVersion);
   await tarExtract(nodeVersion, quietExtraction);
   await applyPatches(nodeVersion);
@@ -237,6 +240,7 @@ async function compileOnUnix(
   if (cpu) {
     args.push('--dest-cpu', cpu);
   }
+  args.push('--dest-os', 'mac');
 
   if (targetArch === 'armv7') {
     const { CFLAGS = '', CXXFLAGS = '' } = process.env;
