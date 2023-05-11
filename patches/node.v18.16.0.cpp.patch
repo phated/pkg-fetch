@@ -281,7 +281,7 @@ index bb175d0df5..07f4834c07 100644
  const { toNamespacedPath } = require('path');
  
 diff --git node/lib/internal/process/pre_execution.js node/lib/internal/process/pre_execution.js
-index a4cc80d480..7579777564 100644
+index a4cc80d480..02a4a13846 100644
 --- node/lib/internal/process/pre_execution.js
 +++ node/lib/internal/process/pre_execution.js
 @@ -33,7 +33,12 @@ const {
@@ -307,21 +307,14 @@ index a4cc80d480..7579777564 100644
      // Expand process.argv[1] into a full path.
      const path = require('path');
      try {
-diff --git node/lib/internal/process/pre_execution.js.rej node/lib/internal/process/pre_execution.js.rej
-new file mode 100644
-index 0000000000..71ba7c9e25
---- /dev/null
-+++ node/lib/internal/process/pre_execution.js.rej
-@@ -0,0 +1,9 @@
-+diff a/lib/internal/process/pre_execution.js b/lib/internal/process/pre_execution.js	(rejected hunks)
-+@@ -598,6 +604,7 @@ function loadPreloadModules() {
-+   // For user code, we preload modules if `-r` is passed
-+   const preloadModules = getOptionValue('--require');
-+   if (preloadModules && preloadModules.length > 0) {
-++    assert(false, '--require is not supported');
-+     const {
-+       Module: {
-+         _preloadModules
+@@ -598,6 +604,7 @@ function loadPreloadModules() {
+   // For user code, we preload modules if `-r` is passed
+   const preloadModules = getOptionValue('--require');
+   if (preloadModules && preloadModules.length > 0) {
++    assert(false, '--require is not supported');
+     const {
+       Module: {
+         _preloadModules,
 diff --git node/lib/vm.js node/lib/vm.js
 index 494e0f9530..351c45e135 100644
 --- node/lib/vm.js
@@ -344,23 +337,20 @@ index 494e0f9530..351c45e135 100644
      } catch (e) {
        throw e; /* node-do-not-add-exception-line */
      }
-diff --git node/node.gyp.rej node/node.gyp.rej
-new file mode 100644
-index 0000000000..d88c9a765c
---- /dev/null
-+++ node/node.gyp.rej
-@@ -0,0 +1,11 @@
-+diff a/node.gyp b/node.gyp	(rejected hunks)
-+@@ -112,6 +112,9 @@
-+     },
-+ 
-+     'conditions': [
-++      ['target_arch=="arm64"', {
-++        'cflags': ['-msign-return-address=all'],  # Pointer authentication.
-++      }],
-+       ['OS=="aix"', {
-+         'ldflags': [
-+           '-Wl,-bnoerrmsg',
+diff --git node/node.gyp node/node.gyp
+index cf52281bb4..8932fc9f76 100644
+--- node/node.gyp
++++ node/node.gyp
+@@ -112,6 +112,9 @@
+     },
+ 
+     'conditions': [
++      ['target_arch=="arm64"', {
++        'cflags': ['-msign-return-address=all'],  # Pointer authentication.
++      }],
+       ['OS in "aix os400"', {
+         'ldflags': [
+           '-Wl,-bnoerrmsg',
 diff --git node/src/inspector_agent.cc node/src/inspector_agent.cc
 index 214f992c9d..508f1f2db8 100644
 --- node/src/inspector_agent.cc
@@ -582,21 +572,19 @@ index d486bbc31c..eb806b1ce4 100644
 +
 +  return adjacent(c, nargv);
 +}
-diff --git node/src/node_options.cc.rej node/src/node_options.cc.rej
-new file mode 100644
-index 0000000000..f5dc5de718
---- /dev/null
-+++ node/src/node_options.cc.rej
-@@ -0,0 +1,9 @@
-+diff a/src/node_options.cc b/src/node_options.cc	(rejected hunks)
-+@@ -308,6 +308,7 @@ void Parse(
-+ // TODO(addaleax): Make that unnecessary.
-+ 
-+ DebugOptionsParser::DebugOptionsParser() {
-++  return;
-+   AddOption("--inspect-port",
-+             "set host:port for inspector",
-+             &DebugOptions::host_port,
+diff --git node/src/node_options.cc node/src/node_options.cc
+index 6e156fa1ba..39f3dbab7e 100644
+--- node/src/node_options.cc
++++ node/src/node_options.cc
+@@ -312,7 +312,7 @@ DebugOptionsParser::DebugOptionsParser() {
+ #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+   if (sea::IsSingleExecutable()) return;
+ #endif
+-
++  return;
+   AddOption("--inspect-port",
+             "set host:port for inspector",
+             &DebugOptions::host_port,
 diff --git node/tools/icu/icu-generic.gyp node/tools/icu/icu-generic.gyp
 index db45e6fbdf..3e39f1fbdf 100644
 --- node/tools/icu/icu-generic.gyp
